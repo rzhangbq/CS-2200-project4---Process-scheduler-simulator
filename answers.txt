@@ -20,15 +20,38 @@ number of CPUs  |  Execution time
 
 Problem 2B (Round-Robin)
 ----------
-
 /* Fix me */
+1. total execution time:
+number of CPUs  |RR time slice  |Execution time
+1               |800ms          |67.9 s
+1               |600ms          |67.9 s
+1               |400ms          |67.9 s
+1               |200ms          |67.9 s
+---------------------------------------------------
+2               |800ms          |40.1 s
+2               |600ms          |40.7 s
+2               |400ms          |40.9 s
+2               |200ms          |40.9 s
+---------------------------------------------------
+4               |800ms          |37.3 s
+4               |600ms          |37.6 s
+4               |400ms          |37.6 s
+4               |200ms          |37.0 s
+
+2. relationship between waiting time and time slice
+From my execution, there is no significant relationship between total execution time and RR time slice. However, according to the running results on Gradescope, it seems that the average execution time decreases slightly as time slice decreases.
+
+3. why not the shortest time slice a good idea?
+In our simulation, it seems that we did not take into account the time spent on context switch. However, in a real OS, context switch could be expensive. With shorter time slice, the number of context switch increases dramatically. As a result, with a shorter time slice, the time spent on context switch increases dramatically.
 
 Problem 3B (Preemptive Priority)
 ----------
-
 /* Fix me */
+1. How can an OS mitigate starvation in a priority scheduler?
+This can be mitigated by dynamically increasing the priority of waiting process as its waiting time increases.
 
 Problem 4 (The Priority Inversion Problem)
 ---------
+
 
 /* Fix me */

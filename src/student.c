@@ -57,19 +57,67 @@ static int rr_time_slice = -1;
 void enqueue(queue_t *queue, pcb_t *process)
 {
     /* FIX ME */
-    // if the queue is empty
-    if (is_empty(queue))
+    // case 1: using preemptive priority scheduling
+    if (scheduler_algorithm == PR)
     {
-        queue->head = process;
-        queue->tail = process;
-        process->next = NULL;
+        // if the queue is empty
+        if (is_empty(queue))
+        {
+            queue->head = process;
+            queue->tail = process;
+            process->next = NULL;
+        }
+        // if the queue is not empty
+        else
+        {
+            // finding the right place to add the current process
+            pcb_t *curr = queue->head;
+            pcb_t *prev = NULL;
+
+            while (curr != NULL && process->priority >= curr->priority)
+            {
+                prev = curr;
+                curr = curr->next;
+            }
+
+            // process has highest priority
+            if (!prev)
+            {
+                process->next = queue->head;
+                queue->head = process;
+            }
+
+            // process has lowest priority
+            else if (!curr)
+            {
+                queue->tail->next = process;
+                queue->tail = process;
+                process->next = NULL;
+            }
+            // process is in between
+            else
+            {
+                process->next = curr;
+                prev->next = process;
+            }
+        }
     }
-    // if the queue is not empty
-    else
+    else // case 2: non-priority scheduler
     {
-        queue->tail->next = process;
-        queue->tail = process;
-        process->next = NULL;
+        // if the queue is empty
+        if (is_empty(queue))
+        {
+            queue->head = process;
+            queue->tail = process;
+            process->next = NULL;
+        }
+        // if the queue is not empty
+        else
+        {
+            queue->tail->next = process;
+            queue->tail = process;
+            process->next = NULL;
+        }
     }
 }
 
@@ -122,9 +170,9 @@ bool is_empty(queue_t *queue)
 static void schedule(unsigned int cpu_id)
 {
     /* FIX ME */
-    // lock the current
+    // locking the current
     pthread_mutex_lock(&current_mutex);
-    // lock the queue
+    // locking the queue
     pthread_mutex_lock(&queue_mutex);
 
     // initialize process pointer
@@ -143,9 +191,9 @@ static void schedule(unsigned int cpu_id)
         // put the process in the current
         current[cpu_id] = process;
     }
-    // unlock the queue
+    // unlocking the queue
     pthread_mutex_unlock(&queue_mutex);
-    // unlock the current
+    // unlocking the current
     pthread_mutex_unlock(&current_mutex);
     context_switch(cpu_id, process, rr_time_slice);
 }
@@ -161,12 +209,12 @@ static void schedule(unsigned int cpu_id)
 extern void idle(unsigned int cpu_id)
 {
     /* FIX ME */
-    // lock the queue
+    // locking the queue
     pthread_mutex_lock(&queue_mutex);
     // waiting on the queue_not_empty signal
     while (is_empty(rq))
         pthread_cond_wait(&queue_not_empty, &queue_mutex);
-    // unlock the queue
+    // unlocking the queue
     pthread_mutex_unlock(&queue_mutex);
 
     // calling the scheduler
@@ -197,7 +245,7 @@ extern void idle(unsigned int cpu_id)
 extern void preempt(unsigned int cpu_id)
 {
     /* FIX ME */
-    // lock the current mutex
+    // locking the current mutex
     pthread_mutex_lock(&current_mutex);
 
     // check if the current cpu_id is valid
@@ -209,15 +257,15 @@ extern void preempt(unsigned int cpu_id)
     current[cpu_id]->state = PROCESS_READY;
 
     //// putting current process to the end of ready queue
-    // lock the queue mutex
+    // locking the queue mutex
     pthread_mutex_lock(&queue_mutex);
     enqueue(rq, current[cpu_id]);
 
-    // unlock the queue mutex
+    // unlocking the queue mutex
     pthread_mutex_unlock(&queue_mutex);
     // clear the current process
     current[cpu_id] = NULL;
-    // unlock the current mutex
+    // unlocking the current mutex
     pthread_mutex_unlock(&current_mutex);
 
     // calling schedule to run the next process
@@ -235,7 +283,7 @@ extern void preempt(unsigned int cpu_id)
 extern void yield(unsigned int cpu_id)
 {
     /* FIX ME */
-    // lock the current mutex
+    // locking the current mutex
     pthread_mutex_lock(&current_mutex);
 
     // check if the current cpu_id is valid
@@ -247,7 +295,7 @@ extern void yield(unsigned int cpu_id)
     current[cpu_id]->state = PROCESS_WAITING;
     // clear the current process
     current[cpu_id] = NULL;
-    // unlock the current mutex
+    // unlocking the current mutex
     pthread_mutex_unlock(&current_mutex);
 
     // calling schedule to run the next process
@@ -264,7 +312,7 @@ extern void yield(unsigned int cpu_id)
 extern void terminate(unsigned int cpu_id)
 {
     /* FIX ME */
-    // lock the current mutex
+    // locking the current mutex
     pthread_mutex_lock(&current_mutex);
 
     // check if the current cpu_id is valid
@@ -276,7 +324,7 @@ extern void terminate(unsigned int cpu_id)
     current[cpu_id]->state = PROCESS_TERMINATED;
     // clear the current process
     current[cpu_id] = NULL;
-    // unlock the current mutex
+    // unlocking the current mutex
     pthread_mutex_unlock(&current_mutex);
     // calling schedule to run the next process
     schedule(cpu_id);
@@ -294,22 +342,80 @@ extern void terminate(unsigned int cpu_id)
 extern void wake_up(pcb_t *process)
 {
     /* FIX ME */
-    // lock the queue mutex
-    pthread_mutex_lock(&queue_mutex);
+    // case 1: using preemptive priority scheduling
+    if (scheduler_algorithm == PR)
+    {
+        // locking the queue mutex
+        pthread_mutex_lock(&queue_mutex);
 
-    // check if the process is not null
-    assert(process != NULL);
+        // check if the process is not null
+        assert(process != NULL);
 
-    // setting the process to ready
-    process->state = PROCESS_READY;
-    // putting the process back to the ready queue
-    enqueue(rq, process);
+        // setting the process to ready
+        process->state = PROCESS_READY;
+        // putting the process back to the ready queue
+        enqueue(rq, process);
 
-    // sending queue_not_empty signal
-    pthread_cond_signal(&queue_not_empty);
+        // sending queue_not_empty signal
+        pthread_cond_signal(&queue_not_empty);
 
-    // unlock the queue mutex
-    pthread_mutex_unlock(&queue_mutex);
+        // unlocking the queue mutex
+        pthread_mutex_unlock(&queue_mutex);
+
+        // locking the current mutex
+        pthread_mutex_lock(&current_mutex);
+        // case 1.1: there is an idle CPU
+        for (unsigned int i = 0; i < cpu_count; i++)
+        {
+            if (!current[i])
+            {
+                // unlocking the current mutex
+                pthread_mutex_unlock(&current_mutex);
+                return;
+            }
+        }
+        // now it is guaranteed that there are not idle CPU
+        // finding the CPU process that has the lowest priority
+        unsigned int lowest_priority_CPU_id = 0;
+        for (unsigned int i = 0; i < cpu_count; i++)
+        {
+            if (current[i]->priority > current[lowest_priority_CPU_id]->priority)
+                lowest_priority_CPU_id = i;
+        }
+
+        // case 1.2.1: the lowest-priority running process has higher priority than the current process
+        if (current[lowest_priority_CPU_id]->priority < process->priority)
+        { // unlocking the current mutex
+            pthread_mutex_unlock(&current_mutex);
+            return;
+        }
+
+
+        // unlocking the current mutex
+        pthread_mutex_unlock(&current_mutex);
+
+        // case 1.2.2: doing preemption
+        force_preempt(lowest_priority_CPU_id);
+    }
+    else // case 2: non-preemptive scheduler
+    {
+        // locking the queue mutex
+        pthread_mutex_lock(&queue_mutex);
+
+        // check if the process is not null
+        assert(process != NULL);
+
+        // setting the process to ready
+        process->state = PROCESS_READY;
+        // putting the process back to the ready queue
+        enqueue(rq, process);
+
+        // sending queue_not_empty signal
+        pthread_cond_signal(&queue_not_empty);
+
+        // unlocking the queue mutex
+        pthread_mutex_unlock(&queue_mutex);
+    }
 }
 
 /**
@@ -328,18 +434,15 @@ int main(int argc, char *argv[])
      * FIX ME
      */
 
-    if (argc == 4)
+    if (argc == 4 && strcmp(argv[2], "-r") == 0)
     {
-        if (strcmp(argv[2], "-r") == 0)
-        {
-            scheduler_algorithm = RR;
-            rr_time_slice = atoi(argv[3]);
-        }
+        scheduler_algorithm = RR;
+        rr_time_slice = atoi(argv[3]);
     }
+    else if (argc == 3 && strcmp(argv[2], "-p") == 0)
+        scheduler_algorithm = PR;
     else if (argc == 2)
-    {
         scheduler_algorithm = FCFS;
-    }
     else
     {
         fprintf(stderr, "CS 2200 Project 4 -- Multithreaded OS Simulator\n"
