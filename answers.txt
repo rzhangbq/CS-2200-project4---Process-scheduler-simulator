@@ -52,6 +52,14 @@ This can be mitigated by dynamically increasing the priority of waiting process 
 
 Problem 4 (The Priority Inversion Problem)
 ---------
-
-
 /* Fix me */
+A possible solution is that we increase the priority of lower-priority processes when they are controlling resources requested by higher-priority processes to the same priority level.
+After the low-priority processes give up the requested resources, they resume their previous lower priority.
+    i.e. Z is using S. When X, a higher priority process requests S, we can promote Z to the same priority as X. As a result, Y, which has lower priority than X, has lower priority than Z temporarily, so Y cannot preempt Z.
+        As soon as Z gives up S, it resumes its lower priority, so Y has higher priority than Z and Y can preempt Z. Since Z has given up S, X can continue to use S.
+
+====notes====
+After I think of the solution above, I searched on wikipedia: https://en.wikipedia.org/wiki/Priority_inversion
+It seems that the solution I propose is called "priority inheritance".
+There are other solutions. For example, we can disable preemption when entering a critical section (i.e. we can disable preemption of Z when Z has control of S). This is done by "priority ceiling protocol".
+Other solution includes "random boosting", "avoid blocking", and "disabling all interrupts to protect critical sections".
