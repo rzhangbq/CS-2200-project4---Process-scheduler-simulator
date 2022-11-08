@@ -45,7 +45,7 @@ static pthread_cond_t queue_not_empty;
 /* keeps track of the scheduling alorightem and cpu count */
 static sched_algorithm_t scheduler_algorithm;
 static unsigned int cpu_count;
-static int rr_time_slice;
+static int rr_time_slice = -1;
 /** ------------------------Problem 0 & 2-----------------------------------
  * Checkout PDF Section 2 and 4 for this problem
  *
@@ -122,6 +122,8 @@ bool is_empty(queue_t *queue)
 static void schedule(unsigned int cpu_id)
 {
     /* FIX ME */
+    // lock the current
+    pthread_mutex_lock(&current_mutex);
     // lock the queue
     pthread_mutex_lock(&queue_mutex);
 
@@ -134,21 +136,18 @@ static void schedule(unsigned int cpu_id)
         // dequeue the process from the ready queue
         process = dequeue(rq);
 
-        // lock the current
-        pthread_mutex_lock(&current_mutex);
         // make sure process is not NULL
         assert(process);
         // set the state of the process to running
         process->state = PROCESS_RUNNING;
         // put the process in the current
         current[cpu_id] = process;
-        // unlock the current
-        pthread_mutex_unlock(&current_mutex);
     }
     // unlock the queue
     pthread_mutex_unlock(&queue_mutex);
-
-    context_switch(cpu_id, process, -1);
+    // unlock the current
+    pthread_mutex_unlock(&current_mutex);
+    context_switch(cpu_id, process, rr_time_slice);
 }
 
 /**  ------------------------Problem 1A-----------------------------------
@@ -198,6 +197,31 @@ extern void idle(unsigned int cpu_id)
 extern void preempt(unsigned int cpu_id)
 {
     /* FIX ME */
+    // lock the current mutex
+    pthread_mutex_lock(&current_mutex);
+
+    // check if the current cpu_id is valid
+    assert(cpu_id < cpu_count);
+    // check if the current process is not null
+    assert(current[cpu_id] != NULL);
+
+    // setting the current process to ready
+    current[cpu_id]->state = PROCESS_READY;
+
+    //// putting current process to the end of ready queue
+    // lock the queue mutex
+    pthread_mutex_lock(&queue_mutex);
+    enqueue(rq, current[cpu_id]);
+
+    // unlock the queue mutex
+    pthread_mutex_unlock(&queue_mutex);
+    // clear the current process
+    current[cpu_id] = NULL;
+    // unlock the current mutex
+    pthread_mutex_unlock(&current_mutex);
+
+    // calling schedule to run the next process
+    schedule(cpu_id);
 }
 
 /**  ------------------------Problem 1-----------------------------------
