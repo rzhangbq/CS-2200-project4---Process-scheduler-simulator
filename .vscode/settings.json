@@ -1,0 +1,9 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/Users/rsz/Documents/CS-2200/cs2200-project4",
+            "binaryPath": "/Users/rsz/Documents/CS-2200/cs2200-project4/os-sim",
+            "binaryArgs": ["-r", "5"]
+        }
+    ]
+}
