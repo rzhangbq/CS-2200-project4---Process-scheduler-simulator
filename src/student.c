@@ -303,26 +303,20 @@ int main(int argc, char *argv[])
     /*
      * FIX ME
      */
-    scheduler_algorithm = FCFS;
 
-    while (-1 != (opt = getopt(argc, argv, ":r:")))
+    if (argc == 4)
     {
-        switch (opt)
+        if (strcmp(argv[2], "-r") == 0)
         {
-        case 'r':
             scheduler_algorithm = RR;
-            rr_time_slice = atoi(optarg);
-            assert(rr_time_slice > 0);
-            break;
-        case ':':
-            fprintf(stderr, "option needs a value\n");
-            return -1;
-        case '?':
-            fprintf(stderr, "unknown option: %c\n", optopt);
-            return -1;
+            rr_time_slice = atoi(argv[3]);
         }
     }
-    if (argc != 2)
+    else if (argc == 2)
+    {
+        scheduler_algorithm = FCFS;
+    }
+    else
     {
         fprintf(stderr, "CS 2200 Project 4 -- Multithreaded OS Simulator\n"
                         "Usage: ./os-sim <# CPUs> [ -r <time slice> | -p ]\n"
@@ -331,10 +325,6 @@ int main(int argc, char *argv[])
                         "         -p : Priority Scheduler\n");
         return -1;
     }
-
-    printf("sch:%d", scheduler_algorithm);
-    printf("tsl:%d", rr_time_slice);
-    return 0;
     /* Parse the command line arguments */
     cpu_count = strtoul(argv[1], NULL, 0);
 
